@@ -73,8 +73,8 @@ public class GoogleApiModelSecure extends GoogleApiModel {
         public String toString(){return this.value;}
     }
 
-    public GoogleApiModelSecure(Context callerContext, FragmentActivity resolutionActivity, String tag){
-        super(callerContext, resolutionActivity, tag);
+    public GoogleApiModelSecure(Context callerContext, FragmentActivity resolutionActivity, String tag, String serverClientID){
+        super(callerContext, resolutionActivity, tag, serverClientID);
         secureRandom = new SecureRandom();
     }
 

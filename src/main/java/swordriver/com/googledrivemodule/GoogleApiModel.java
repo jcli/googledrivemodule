@@ -94,7 +94,7 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
     }
 
     /////////////// constructor ////////////////////
-    public GoogleApiModel(Context callerContext, FragmentActivity resolutionActivity, String tag){
+    public GoogleApiModel(Context callerContext, FragmentActivity resolutionActivity, String tag, String serverClientID){
         mTAG=tag;
         mParentContext = callerContext;
         mResolutionActivity = resolutionActivity;
@@ -103,7 +103,7 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
                 .requestEmail()
                 .requestScopes(Drive.SCOPE_FILE)
                 .requestScopes(Plus.SCOPE_PLUS_LOGIN)
-//                .requestIdToken(callerContext.getString(R.string.server_client_id))
+                .requestIdToken(serverClientID)
                 .build();
 
         mGoogleApiClient = new GoogleApiClient.Builder(mParentContext)
