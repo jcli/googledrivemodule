@@ -1,4 +1,4 @@
-package com.example.googledrivemodule;
+package swordriver.com.googledrivemodule;
 
 import org.junit.Test;
 

@@ -1,4 +1,4 @@
-package com.example.googledrivemodule;
+package swordriver.com.googledrivemodule;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getTargetContext();
 
-        assertEquals("com.example.googledrivemodule.test", appContext.getPackageName());
+        assertEquals("swordriver.com.googledrivemodule.test", appContext.getPackageName());
     }
 }
