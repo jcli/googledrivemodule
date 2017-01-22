@@ -163,6 +163,7 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
                             }
                             mGoogleApiClient.disconnect();
                             mCurrentApiStatus=GoogleApiStatus.DISCONNECTED;
+                            selfNotify();
                         }
                     });
         }else{
@@ -184,6 +185,7 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
                             }
                             mGoogleApiClient.disconnect();
                             mCurrentApiStatus = GoogleApiStatus.DISCONNECTED;
+                            selfNotify();
                         }
                     });
         }catch (Exception e){
@@ -621,11 +623,8 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
             @Override
             public void callback(FolderInfo info) {
                 mAppRootFolder = info.folder;
-                setChanged();
                 mCurrentApiStatus=GoogleApiStatus.INITIALIZED;
-                notifyObservers(GoogleApiStatus.INITIALIZED);
-                clearChanged();
-
+                selfNotify();
                 callbackInstance.callback(info);
             }
         });
@@ -668,6 +667,14 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
     public void onConnectionSuspended(int i) {
     }
 
+    //////////////////// protected helper ////////////////////////
+
+    protected synchronized void selfNotify(){
+        setChanged();
+        notifyObservers(mCurrentApiStatus);
+        clearChanged();
+    }
+
     //////////////////// private helper ////////////////////////
 
     private synchronized void initCountDown()   {
@@ -680,4 +687,5 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
         }
         writeCountDown = new CountDownLatch(1);
     }
+
 }

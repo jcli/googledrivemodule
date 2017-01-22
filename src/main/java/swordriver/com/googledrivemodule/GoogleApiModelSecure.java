@@ -198,9 +198,7 @@ public class GoogleApiModelSecure extends GoogleApiModel {
                     //TODO: error!
                 }
                 mCurrentApiStatus = GoogleApiStatus.CONNECTED_UNINITIALIZED;
-                setChanged();
-                notifyObservers(GoogleApiStatus.CONNECTED_UNINITIALIZED);
-                clearChanged();
+                selfNotify();
 
                 callbackInstance.callback(info);
             }
@@ -232,9 +230,7 @@ public class GoogleApiModelSecure extends GoogleApiModel {
                     if (metadataResult.getStatus().isSuccess()) {
                         mPasswordValidationData = metadataResult.getMetadata();
                         mCurrentApiStatus = GoogleApiStatus.INITIALIZED;
-                        setChanged();
-                        notifyObservers(GoogleApiStatus.INITIALIZED);
-                        clearChanged();
+                        selfNotify();
                     }else{
                         // ERROR: shouldn't fail.
                     }
@@ -251,9 +247,7 @@ public class GoogleApiModelSecure extends GoogleApiModel {
             mSalt=null;
             if (passwordValidation()){
                 mCurrentApiStatus=GoogleApiStatus.INITIALIZED;
-                setChanged();
-                notifyObservers(GoogleApiStatus.INITIALIZED);
-                clearChanged();
+                selfNotify();
                 return true;
             }else{
                 mPasswordString=null;
