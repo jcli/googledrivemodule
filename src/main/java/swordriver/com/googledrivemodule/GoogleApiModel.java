@@ -73,6 +73,7 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
 
     private String mIdToken;
     private String mUserEmail;
+    private String mDisplayName;
     private CountDownLatch writeCountDown;
 
     protected GoogleApiStatus mCurrentApiStatus = GoogleApiStatus.DISCONNECTED;
@@ -142,6 +143,7 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
             GoogleSignInAccount acct = result.getSignInAccount();
             mIdToken=acct.getIdToken();
             mUserEmail=acct.getEmail();
+            mDisplayName=acct.getDisplayName();
             this.connect();
         }else{
             //TODO: handle sign in failure
@@ -606,8 +608,12 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
     }
 
     /////// get info APIs
-    public String getUsername() {
+    public String getEmail() {
         return mUserEmail;
+    }
+
+    public String getDisplayName(){
+        return mDisplayName;
     }
 
     public String getIdToken(){
