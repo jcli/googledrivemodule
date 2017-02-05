@@ -368,6 +368,7 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
                 for (int i = 0; i < info.items.length; i++) {
                     if (nameCompare(fileName, info.items[i].meta, metaInfo) && !info.items[i].meta.isFolder()) {
                         // naming conflict !!
+                        Timber.tag(mTAG).w("createTxtFileInFolder(): naming conflict!");
                         writeCountDown.countDown();
                         if (callbackInstance != null) callbackInstance.callback(info);
                         return;
