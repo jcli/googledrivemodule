@@ -511,8 +511,10 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
     }
     public GoogleApiStatus deleteMultipleItems(final Deque<DriveId> items, final ResultCallback<Status> callbackInstance){
         if (mCurrentApiStatus==GoogleApiStatus.DISCONNECTED) return mCurrentApiStatus;
-        if (items.size()==0)
+        if (items.size()==0) {
             callbackInstance.onResult(new Status(0));
+            return mCurrentApiStatus;
+        }
         DriveId assetID = items.pop();
         deleteItem(assetID, new ResultCallback<Status>() {
             @Override
