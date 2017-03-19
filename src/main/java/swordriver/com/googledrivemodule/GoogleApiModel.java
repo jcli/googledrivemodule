@@ -447,15 +447,15 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
     }
 
     public interface WriteTxtFileCallback {
-        void callback(boolean success);
+        void callback(boolean success, Metadata newMeta);
     }
     public GoogleApiStatus writeTxtFile(final ItemInfo assetInfo, final String contentStr, final WriteTxtFileCallback callbackInstance){
         return writeTxtFile(assetInfo, contentStr, callbackInstance, null);
     }
     public GoogleApiStatus writeTxtFile(final ItemInfo assetInfo, final String contentStr, final WriteTxtFileCallback callbackInstance, final Map<String, String> metaInfo){
         if (mCurrentApiStatus==GoogleApiStatus.DISCONNECTED) return mCurrentApiStatus;
-        String assetID = assetInfo.meta.getDriveId().encodeToString();
-        DriveFile file = DriveId.decodeFromString(assetID).asDriveFile();
+        final DriveId assetID = assetInfo.meta.getDriveId();
+        DriveFile file = assetID.asDriveFile();
         file.open(mGoogleApiClient, DriveFile.MODE_WRITE_ONLY, null).setResultCallback(new ResultCallback<DriveContentsResult>() {
             @Override
             public void onResult(DriveContentsResult result) {
@@ -491,10 +491,15 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
                 }else {
                     driveContents.commit(mGoogleApiClient, changeSet).setResultCallback(new ResultCallback<Status>() {
                         @Override
-                        public void onResult(Status result) {
-                            if (callbackInstance != null) {
-                                callbackInstance.callback(result.isSuccess());
-                            }
+                        public void onResult(final Status result) {
+                            getMeta(assetID, new ResultCallback<DriveResource.MetadataResult>() {
+                                @Override
+                                public void onResult(@NonNull DriveResource.MetadataResult metadataResult) {
+                                    if (callbackInstance != null) {
+                                        callbackInstance.callback(result.isSuccess(), metadataResult.getMetadata());
+                                    }
+                                }
+                            });
                         }
                     });
                 }
@@ -599,6 +604,12 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
         }
         MetadataChangeSet changeSet = changeSetBuilder.build();
         assetID.asDriveResource().updateMetadata(mGoogleApiClient, changeSet).setResultCallback(callback);
+        return mCurrentApiStatus;
+    }
+
+    public GoogleApiStatus getMeta(DriveId assetID, ResultCallback<DriveResource.MetadataResult> resultCallback){
+        if (mCurrentApiStatus==GoogleApiStatus.DISCONNECTED) return mCurrentApiStatus;
+        assetID.asDriveResource().getMetadata(mGoogleApiClient).setResultCallback(resultCallback);
         return mCurrentApiStatus;
     }
 
