@@ -214,11 +214,13 @@ public class GoogleApiModelSecure extends GoogleApiModel {
     }
 
     public synchronized boolean setPassword(String password){
+        mPasswordString=password;
+        mKeyEncryptionKey=null;
+        mSalt=null;
+        if (password.equals("")) return false;
+
         if (mPasswordValidationData ==null){
             // new password
-            mPasswordString=password;
-            mKeyEncryptionKey=null;
-            mSalt=null;
             // generate salt and create a validation string
             generateSalt();
             convertPassToKey(mPasswordString);
@@ -242,9 +244,6 @@ public class GoogleApiModelSecure extends GoogleApiModel {
             }
         }else{
             // validate password
-            mPasswordString=password;
-            mKeyEncryptionKey=null;
-            mSalt=null;
             if (passwordValidation()){
                 mCurrentApiStatus=GoogleApiStatus.INITIALIZED;
                 selfNotify();
