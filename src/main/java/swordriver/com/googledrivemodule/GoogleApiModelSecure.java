@@ -20,6 +20,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -38,16 +39,20 @@ import timber.log.Timber;
  * Created by jcli on 4/26/16.
  * Asset name is also encrypted
  * metadata contain the following
- *  - IV for the content
- *  - encrypted encryption key
- *  - IV for the encryption key
- *  - password salt (should be same for all asset)
- *
+ *  - "encryption_key": encrypted encryption key used to encrypt the actual content
+ *  - "encryption_key_iv": IV for the encrypted encryption key
+ *  - "salt": password salt (should be same for all asset)
+ *  - "asset_name_iv": IV for the asset name.  The actual encrypted name is just the name of the asset
+ *  - "validation_text": A random text string served to validate the encryption key
+ *  - "validation_text_iv: IV for validation_text string
+ *  - "cipher_text_iv": IV for the content of the file
  */
+
 public class GoogleApiModelSecure extends GoogleApiModel {
 
     private final int ITERATIONS = 10000;
     private final int KEYLENGTH = 256;
+    private final String RANDOM_VALIDATION_STRING="random validation string";
     private SecretKey mKeyEncryptionKey=null;  // must never be stored, and should be cleared on timeout.
     private String mPasswordString=null; // must never be stored, and should be cleared on timeout.
     private byte[] mSalt;               // should be the same for every asset
@@ -224,8 +229,8 @@ public class GoogleApiModelSecure extends GoogleApiModel {
             // generate salt and create a validation string
             generateSalt();
             convertPassToKey(mPasswordString);
+            Map<String, String> cipherData = encryptValidationString(RANDOM_VALIDATION_STRING);
             //TODO: need to generate a random string
-            Map<String, String> cipherData = encryptValidationString("random validation string");
             if (updateMetadata(mAppRootFolder.getDriveId(), cipherData, new ResultCallback<DriveResource.MetadataResult>() {
                 @Override
                 public void onResult(@NonNull DriveResource.MetadataResult metadataResult) {
@@ -262,6 +267,92 @@ public class GoogleApiModelSecure extends GoogleApiModel {
         mSalt=null;
         mKeyEncryptionKey=null;
         mCurrentApiStatus=GoogleApiStatus.CONNECTED_UNINITIALIZED;
+    }
+
+    public GoogleApiStatus changePassword(final String newPassword, final ListFolderCallback callback){
+        if (mCurrentApiStatus!=GoogleApiStatus.INITIALIZED) return mCurrentApiStatus;
+        final ListFolderCallback finishCallback = new ListFolderCallback() {
+            @Override
+            public void callback(FolderInfo info) {
+                // change the password validation data of app root.  Then list folder again.
+                Map<String, String> cipherData = encryptValidationString(RANDOM_VALIDATION_STRING);
+                updateMetadata(mAppRootFolder.getDriveId(), cipherData, new ResultCallback<DriveResource.MetadataResult>() {
+                    @Override
+                    public void onResult(@NonNull DriveResource.MetadataResult metadataResult) {
+                        if (metadataResult.getStatus().isSuccess()) {
+                            Timber.tag(mTAG).e("Updated the password validation data.");
+                            mPasswordValidationData = metadataResult.getMetadata();
+                        } else {
+                            // ERROR: shouldn't fail.
+                            Timber.tag(mTAG).e("Update meta data failed for password validation data!!! Unrecoverable!");
+                        }
+                        listAllFolder(mAppRootFolder, new ListFolderCallback() {
+                            @Override
+                            public void callback(FolderInfo info) {
+                                callback.callback(info);
+                            }
+                        });
+                    }
+                });
+            }
+        };
+        listAllFolder(mAppRootFolder, new ListFolderCallback() {
+            @Override
+            public void callback(final FolderInfo info) {
+                Timber.tag(mTAG).v("listed all items (%d) in app root", info.items.length);
+                // back up old master key
+                final SecretKey currentKeyEncryptionKey = mKeyEncryptionKey;
+                // generate new salt and key
+                mPasswordString = newPassword;
+                generateSalt();
+                convertPassToKey(newPassword);  // no turning back if this fails!
+
+                if (info.items.length > 0) {
+                    final AtomicInteger count = new AtomicInteger(0);
+                    final int totalItems = info.items.length;
+                    for (ItemInfo item : info.items) {
+                        Timber.tag(mTAG).v("changing password on item: %s", item.readableTitle);
+                        Map<String, String> propertiesMap = new HashMap<String, String>();
+                        for (Map.Entry<CustomPropertyKey, String> entry : item.meta.getCustomProperties().entrySet()){
+                            propertiesMap.put(entry.getKey().getKey(), entry.getValue());
+                        }
+                        if (propertiesMap.get(SecureProperties.ENCRYPTION_KEY.toString())==null
+                                || propertiesMap.get(SecureProperties.ENCRYPTION_KEY_IV.toString())==null){
+                            // clear content
+                            continue;
+                        }
+                        // decrypt the encryption key using current master key
+                        byte[] keyIV = Base64.decode(propertiesMap.get(SecureProperties.ENCRYPTION_KEY_IV.toString()), Base64.URL_SAFE);
+                        byte[] encryptionKeyBytes = decryptStringToData(propertiesMap.get(SecureProperties.ENCRYPTION_KEY.toString()),
+                                currentKeyEncryptionKey, keyIV);
+                        // re-encrypt the encryption key using the new key encryption key.
+                        Map<String, String> newEncryptedKencryptionKeyValues = encryptThenBase64(encryptionKeyBytes, mKeyEncryptionKey);
+                        // update the meta data with new "encryption_key", "encryption_key_iv", and "salt
+                        propertiesMap.put(SecureProperties.ENCRYPTION_KEY_IV.toString(),
+                                newEncryptedKencryptionKeyValues.get(SecureProperties.CIPHER_TEXT_IV.toString()));
+                        propertiesMap.put(SecureProperties.ENCRYPTION_KEY.toString(),
+                                newEncryptedKencryptionKeyValues.get(SecureProperties.CIPHER_TEXT.toString()));
+                        propertiesMap.put(SecureProperties.SALT.toString(),
+                                Base64.encodeToString(mSalt, Base64.URL_SAFE));
+                        updateMetadata(item.meta.getDriveId(), propertiesMap, new ResultCallback<DriveResource.MetadataResult>() {
+                            @Override
+                            public void onResult(@NonNull DriveResource.MetadataResult metadataResult) {
+                                if (metadataResult.getStatus().isSuccess()){
+                                    if (count.incrementAndGet()==totalItems){
+                                        // all items updated.
+                                        finishCallback.callback(info);
+                                    }
+                                }else{
+                                    // unrecoverable error
+                                    Timber.tag(mTAG).e("Update meta data failed!!! Unrecoverable!");
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+        return  mCurrentApiStatus;
     }
 
     public void clearPasswordValidationData(){

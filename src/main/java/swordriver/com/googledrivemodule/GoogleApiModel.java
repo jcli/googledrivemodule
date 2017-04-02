@@ -40,13 +40,17 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.lang.reflect.Array;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Deque;
 import java.util.Map;
 import java.util.Observable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import timber.log.Timber;
 
@@ -272,6 +276,48 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
                                 result.release();
                             }
                         });
+            }
+        });
+        return mCurrentApiStatus;
+    }
+
+    public GoogleApiStatus listAllFolder(DriveFolder assetID, final ListFolderCallback callbackInstance) {
+        if (mCurrentApiStatus==GoogleApiStatus.DISCONNECTED) return mCurrentApiStatus;
+        final ArrayList<ItemInfo> output = new ArrayList<>();
+        listFolder(assetID, new ListFolderCallback() {
+            @Override
+            public void callback(FolderInfo info) {
+                output.addAll(Arrays.asList (info.items));
+                ArrayList<ItemInfo> subFolders = new ArrayList<>();
+                for (ItemInfo item : info.items) {
+                    if (item.meta.isFolder()) {
+                        subFolders.add(item);
+                    }
+                }
+                if (subFolders.size()>0){
+                    final AtomicInteger count = new AtomicInteger(0);
+                    final int totalSubfolders = subFolders.size();
+                    for (ItemInfo folder : subFolders){
+                        listAllFolder(folder.meta.getDriveId().asDriveFolder(), new ListFolderCallback() {
+                            @Override
+                            public void callback(FolderInfo info) {
+                                output.addAll(Arrays.asList (info.items));
+                                if (count.incrementAndGet()==totalSubfolders){
+                                    // all folders listed
+                                    FolderInfo callbackInfo = new FolderInfo();
+                                    callbackInfo.items = new ItemInfo[output.size()];
+                                    callbackInfo.items = output.toArray(callbackInfo.items);
+                                    callbackInstance.callback(callbackInfo);
+                                }
+                            }
+                        });
+                    }
+                }else{
+                    FolderInfo callbackInfo = new FolderInfo();
+                    callbackInfo.items = new ItemInfo[output.size()];
+                    callbackInfo.items = output.toArray(callbackInfo.items);
+                    callbackInstance.callback(callbackInfo);
+                }
             }
         });
         return mCurrentApiStatus;
