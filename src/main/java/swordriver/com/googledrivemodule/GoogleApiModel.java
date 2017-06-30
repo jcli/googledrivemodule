@@ -725,17 +725,18 @@ public class GoogleApiModel extends Observable implements GoogleApiClient.Connec
         Timber.tag(mTAG).i("connected.");
         if (mGoogleApiClient.isConnected()) {
             mCurrentApiStatus = GoogleApiStatus.CONNECTED_UNINITIALIZED;
-            Drive.DriveApi.requestSync(mGoogleApiClient).setResultCallback(new ResultCallback<Status>() {
-                @Override
-                public void onResult(@NonNull Status status) {
-                    if (!status.getStatus().isSuccess()) {
-                        Timber.tag(mTAG).e("SYNCING ERROR" + status.getStatusMessage());
-                    } else {
-                        Timber.tag(mTAG).i("SYNCING SUCCESS");
-                    }
-                    initAppRoot(new ListFolderCallbackNull());
-                }
-            });
+//            Drive.DriveApi.requestSync(mGoogleApiClient).setResultCallback(new ResultCallback<Status>() {
+//                @Override
+//                public void onResult(@NonNull Status status) {
+//                    if (!status.getStatus().isSuccess()) {
+//                        Timber.tag(mTAG).e("SYNCING ERROR" + status.getStatusMessage());
+//                    } else {
+//                        Timber.tag(mTAG).i("SYNCING SUCCESS");
+//                    }
+//                    initAppRoot(new ListFolderCallbackNull());
+//                }
+//            });
+            initAppRoot(new ListFolderCallbackNull());
         }
     }
 

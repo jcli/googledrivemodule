@@ -131,13 +131,16 @@ public class GoogleApiModelSecure extends GoogleApiModel {
                 if (cipherIV == null || fileContent.length()==0) {
                     callbackInstance.callback(fileContent);
                 }else{
+                    Timber.tag(mTAG).v("Read text (encrypted): %s", fileContent);
                     Map<String, String> encryptInfo = new HashMap<>();
                     for (Map.Entry<CustomPropertyKey, String> entry : properties.entrySet()) {
                         String key = entry.getKey().getKey();
                         String value = entry.getValue();
                         encryptInfo.put(key, value);
+                        Timber.tag(mTAG).v("Read Key: %s, Value: %s", key, value);
                     }
                     String clearFileContent = decryptAssetString(fileContent, encryptInfo.get(SecureProperties.CIPHER_TEXT_IV.toString()), encryptInfo);
+                    Timber.tag(mTAG).v("Read text (clear): %s", clearFileContent);
                     callbackInstance.callback(clearFileContent);
                 }
             }
@@ -147,6 +150,7 @@ public class GoogleApiModelSecure extends GoogleApiModel {
     @Override
     public GoogleApiStatus writeTxtFile(final ItemInfo assetInfo, final String contentStr, final WriteTxtFileCallback callbackInstance, final Map<String, String> metaInfo) {
         if (mCurrentApiStatus!=GoogleApiStatus.INITIALIZED) return mCurrentApiStatus;
+        Timber.tag(mTAG).v("Writting text (clear): %s", contentStr);
         Map<CustomPropertyKey, String> properties = assetInfo.meta.getCustomProperties();
         String encryptedEncryptionKey = (String) properties.get(new CustomPropertyKey(SecureProperties.ENCRYPTION_KEY.toString(), CustomPropertyKey.PUBLIC));
         if (encryptedEncryptionKey == null) {
@@ -158,10 +162,17 @@ public class GoogleApiModelSecure extends GoogleApiModel {
             for (Map.Entry<CustomPropertyKey, String> entry : properties.entrySet()) {
                 String key = entry.getKey().getKey();
                 String value = entry.getValue();
+                Timber.tag(mTAG).v("Writting Key: %s, Value: %s", key, value);
                 encryptInfo.put(key, value);
             }
             String encryptedFileContent = encryptAssetString(contentStr, encryptInfo);
             if (metaInfo!=null) encryptInfo.putAll(metaInfo);
+            for (Map.Entry<String, String> entry : encryptInfo.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                Timber.tag(mTAG).v("Writting Key: %s, Value: %s", key, value);
+            }
+            Timber.tag(mTAG).v("Writting text (encrypted): %s", encryptedFileContent);
             return super.writeTxtFile(assetInfo, encryptedFileContent, callbackInstance, encryptInfo);
         }
     }
